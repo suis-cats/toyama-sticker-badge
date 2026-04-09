@@ -327,8 +327,8 @@ function MotionControls({ enabled, onMotionChange }: MotionControlsProps) {
       const gamma = THREE.MathUtils.clamp(event.gamma ?? 0, -45, 45);
 
       onMotionChange({
-        tiltX: THREE.MathUtils.degToRad(beta) * 0.16,
-        tiltY: THREE.MathUtils.degToRad(gamma) * 0.22,
+        tiltX: THREE.MathUtils.degToRad(beta) * 0.34,
+        tiltY: THREE.MathUtils.degToRad(gamma) * 0.46,
       });
     };
 
@@ -429,7 +429,7 @@ function Scene({
         enablePan={false}
         enableDamping
         autoRotate={mode === "drag"}
-        autoRotateSpeed={0.8}
+        autoRotateSpeed={2.4}
         dampingFactor={0.08}
         rotateSpeed={0.85}
         minPolarAngle={0.25}
