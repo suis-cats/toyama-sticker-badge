@@ -1,0 +1,129 @@
+.stage {
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  width: min(94vw, 1120px);
+}
+
+.canvasFrame {
+  position: relative;
+  width: min(94vw, 1120px);
+  height: min(76svh, 820px);
+  min-height: 420px;
+  border-radius: 34px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(139, 193, 255, 0.12), transparent 25%),
+    radial-gradient(circle at 50% 65%, rgba(74, 117, 255, 0.1), transparent 40%),
+    #000;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 20px 90px rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.canvasFrame::before,
+.canvasFrame::after {
+  position: absolute;
+  inset: auto;
+  content: "";
+  pointer-events: none;
+}
+
+.canvasFrame::before {
+  top: 8%;
+  left: 50%;
+  width: min(54vw, 420px);
+  height: min(54vw, 420px);
+  border-radius: 999px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(200, 229, 255, 0.22), transparent 68%);
+  filter: blur(24px);
+}
+
+.canvasFrame::after {
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.75);
+}
+
+.captionRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 18px;
+}
+
+.caption {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.76rem;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(214, 226, 242, 0.72);
+}
+
+.loaderShell {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(150, 207, 255, 0.14), transparent 24%),
+    #000;
+}
+
+.loaderHalo,
+.loaderBadge {
+  position: absolute;
+  border-radius: 999px;
+}
+
+.loaderHalo {
+  width: min(54vw, 360px);
+  aspect-ratio: 1;
+  background: radial-gradient(circle, rgba(173, 221, 255, 0.2), transparent 66%);
+  filter: blur(14px);
+}
+
+.loaderBadge {
+  width: min(42vw, 250px);
+  aspect-ratio: 0.64;
+  border-radius: 44% 44% 16% 16% / 26% 26% 12% 12%;
+  background:
+    linear-gradient(140deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0.04)),
+    linear-gradient(180deg, rgba(97, 124, 232, 0.36), rgba(10, 11, 21, 0.32));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+@media (max-width: 980px) {
+  .canvasFrame {
+    height: min(72svh, 760px);
+  }
+}
+
+@media (max-width: 720px) {
+  .stage {
+    gap: 14px;
+  }
+
+  .canvasFrame {
+    width: min(100vw - 24px, 960px);
+    min-height: 360px;
+    height: min(66svh, 640px);
+    border-radius: 28px;
+  }
+}
+
+@media (max-width: 640px) and (orientation: landscape) {
+  .canvasFrame {
+    height: min(78svh, 480px);
+    min-height: 320px;
+  }
+}
