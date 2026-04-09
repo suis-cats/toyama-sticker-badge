@@ -11,11 +11,12 @@ import {
   useTexture,
 } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 
 type BadgeSceneProps = {
+  mode?: "drag" | "sensor";
   textureUrl: string;
 };
 
@@ -27,6 +28,10 @@ const BADGE_IMAGE = {
 const BADGE_ASPECT = BADGE_IMAGE.width / BADGE_IMAGE.height;
 
 type BadgeModelProps = {
+  motion: {
+    tiltX: number;
+    tiltY: number;
+  };
   textureUrl: string;
 };
 
@@ -96,9 +101,8 @@ function createAlphaTexture(source: CanvasImageSource, width: number, height: nu
   return texture;
 }
 
-function BadgeModel({ textureUrl }: BadgeModelProps) {
+function BadgeModel({ textureUrl, motion }: BadgeModelProps) {
   const group = useRef<THREE.Group>(null);
-  const rimGroup = useRef<THREE.Group>(null);
   const { gl, size } = useThree();
   const texture = useTexture(textureUrl, (loadedTexture) => {
     const anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
@@ -160,12 +164,28 @@ function BadgeModel({ textureUrl }: BadgeModelProps) {
         : 1.08;
 
   useFrame((state, delta) => {
-    if (!group.current || !rimGroup.current) {
+    if (!group.current) {
       return;
     }
 
-    group.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.45) * 0.025;
-    rimGroup.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.42) * 0.04;
+    group.current.rotation.x = THREE.MathUtils.damp(
+      group.current.rotation.x,
+      0.02 + motion.tiltX,
+      4.5,
+      delta,
+    );
+    group.current.rotation.y = THREE.MathUtils.damp(
+      group.current.rotation.y,
+      -0.08 + motion.tiltY,
+      4.5,
+      delta,
+    );
+    group.current.rotation.z = THREE.MathUtils.damp(
+      group.current.rotation.z,
+      0.01 + Math.sin(state.clock.elapsedTime * 0.45) * 0.025 + motion.tiltY * -0.18,
+      4,
+      delta,
+    );
     group.current.position.y = THREE.MathUtils.damp(
       group.current.position.y,
       0.1 + Math.sin(state.clock.elapsedTime * 0.6) * 0.03,
@@ -176,18 +196,6 @@ function BadgeModel({ textureUrl }: BadgeModelProps) {
 
   return (
     <group scale={badgeScale}>
-      {haloTexture ? (
-        <sprite position={[0, 0.18, -0.72]} scale={[3.5, 3.5, 1]}>
-          <spriteMaterial
-            map={haloTexture}
-            color="#bce4ff"
-            opacity={0.18}
-            depthWrite={false}
-            transparent
-          />
-        </sprite>
-      ) : null}
-
       {floorGlowTexture ? (
         <sprite position={[0, -1.7, -0.2]} scale={[3.6, 1.35, 1]}>
           <spriteMaterial
@@ -199,25 +207,6 @@ function BadgeModel({ textureUrl }: BadgeModelProps) {
           />
         </sprite>
       ) : null}
-
-      <group ref={rimGroup} position={[0, 0.08, 0]}>
-        <mesh
-          rotation={[0, 0, Math.PI * 0.015]}
-          position={[0, -0.04, -0.01]}
-          scale={[0.88, 1.16, 1]}
-        >
-          <torusGeometry args={[1.26, 0.052, 32, 180]} />
-          <meshPhysicalMaterial
-            color="#c7dff1"
-            emissive="#67a9dc"
-            emissiveIntensity={0.12}
-            metalness={1}
-            roughness={0.2}
-            clearcoat={1}
-            clearcoatRoughness={0.1}
-          />
-        </mesh>
-      </group>
 
       <group ref={group} rotation={[0.02, -0.08, 0.01]} position={[0, 0.08, 0]}>
         <mesh position={[0, 0, thickness / 2 - 0.03]}>
@@ -302,24 +291,61 @@ function BadgeModel({ textureUrl }: BadgeModelProps) {
         </mesh>
 
         <Text
-          position={[0, -1.18, -thickness / 2 - 0.035]}
+          position={[0, 0, -thickness / 2 - 0.035]}
           rotation={[0, Math.PI, 0]}
-          fontSize={0.18}
-          letterSpacing={0.06}
+          fontSize={0.06}
+          lineHeight={1.25}
+          letterSpacing={0.01}
           color="#eef4fb"
           anchorX="center"
           anchorY="middle"
-          outlineWidth={0.006}
+          textAlign="center"
+          outlineWidth={0.003}
           outlineColor="#1a2230"
         >
-          TSP.Inc
+          {"Toyama\nSticker\nProject"}
         </Text>
       </group>
     </group>
   );
 }
 
-function Scene({ textureUrl }: BadgeSceneProps) {
+type MotionControlsProps = {
+  enabled: boolean;
+  onMotionChange: (motion: { tiltX: number; tiltY: number }) => void;
+};
+
+function MotionControls({ enabled, onMotionChange }: MotionControlsProps) {
+  useEffect(() => {
+    if (!enabled || typeof window === "undefined") {
+      onMotionChange({ tiltX: 0, tiltY: 0 });
+      return;
+    }
+
+    const handleOrientation = (event: DeviceOrientationEvent) => {
+      const beta = THREE.MathUtils.clamp(event.beta ?? 0, -45, 45);
+      const gamma = THREE.MathUtils.clamp(event.gamma ?? 0, -45, 45);
+
+      onMotionChange({
+        tiltX: THREE.MathUtils.degToRad(beta) * 0.16,
+        tiltY: THREE.MathUtils.degToRad(gamma) * 0.22,
+      });
+    };
+
+    window.addEventListener("deviceorientation", handleOrientation, true);
+    return () => {
+      window.removeEventListener("deviceorientation", handleOrientation, true);
+    };
+  }, [enabled, onMotionChange]);
+
+  return null;
+}
+
+function Scene({
+  motion,
+  mode = "drag",
+  textureUrl,
+}: BadgeSceneProps & { motion: { tiltX: number; tiltY: number } }) {
   const controlsRef = useRef<OrbitControlsImpl>(null);
 
   return (
@@ -384,7 +410,7 @@ function Scene({ textureUrl }: BadgeSceneProps) {
           </group>
         </Environment>
 
-        <BadgeModel textureUrl={textureUrl} />
+        <BadgeModel textureUrl={textureUrl} motion={motion} />
       </Suspense>
 
       <ContactShadows
@@ -402,7 +428,7 @@ function Scene({ textureUrl }: BadgeSceneProps) {
         enableZoom={false}
         enablePan={false}
         enableDamping
-        autoRotate
+        autoRotate={mode === "drag"}
         autoRotateSpeed={0.8}
         dampingFactor={0.08}
         rotateSpeed={0.85}
@@ -413,18 +439,89 @@ function Scene({ textureUrl }: BadgeSceneProps) {
   );
 }
 
-export default function BadgeScene({ textureUrl }: BadgeSceneProps) {
+type IOSDeviceOrientationEvent = {
+  requestPermission?: () => Promise<"granted" | "denied">;
+};
+
+function SensorPermissionButton({
+  onEnable,
+}: {
+  onEnable: () => Promise<void>;
+}) {
   return (
-    <Canvas
-      shadows
-      dpr={[1, 2]}
-      gl={{
-        antialias: true,
-        alpha: false,
-        powerPreference: "high-performance",
-      }}
-    >
-      <Scene textureUrl={textureUrl} />
-    </Canvas>
+    <button className="sensorButton" onClick={() => void onEnable()} type="button">
+      Enable Motion
+    </button>
+  );
+}
+
+export default function BadgeScene({
+  mode = "drag",
+  textureUrl,
+}: BadgeSceneProps) {
+  const orientationApi =
+    typeof window !== "undefined"
+      ? (window.DeviceOrientationEvent as IOSDeviceOrientationEvent | undefined)
+      : undefined;
+  const isTouchDevice =
+    typeof window !== "undefined" &&
+    (window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0);
+  const supportsSensor = mode === "sensor" && isTouchDevice;
+  const requiresPermission = supportsSensor && Boolean(orientationApi?.requestPermission);
+
+  const [motion, setMotion] = useState({ tiltX: 0, tiltY: 0 });
+  const [motionEnabled, setMotionEnabled] = useState(
+    supportsSensor && !requiresPermission,
+  );
+
+  const enableMotion = async () => {
+    if (!supportsSensor) {
+      return;
+    }
+
+    if (orientationApi?.requestPermission) {
+      const permission = await orientationApi.requestPermission();
+      if (permission === "granted") {
+        setMotionEnabled(true);
+      }
+      return;
+    }
+
+    setMotionEnabled(true);
+  };
+
+  return (
+    <>
+      <Canvas
+        shadows
+        dpr={[1, 2]}
+        gl={{
+          antialias: true,
+          alpha: false,
+          powerPreference: "high-performance",
+        }}
+      >
+        <MotionControls
+          enabled={mode === "sensor" && motionEnabled}
+          onMotionChange={setMotion}
+        />
+        <Scene mode={mode} motion={motion} textureUrl={textureUrl} />
+      </Canvas>
+      {mode === "sensor" && requiresPermission && !motionEnabled ? (
+        <div
+          style={{
+            position: "absolute",
+            inset: "auto 0 28px",
+            display: "flex",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <div style={{ pointerEvents: "auto" }}>
+            <SensorPermissionButton onEnable={enableMotion} />
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
