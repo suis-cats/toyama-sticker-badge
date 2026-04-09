@@ -28,6 +28,7 @@ const BADGE_IMAGE = {
 const BADGE_ASPECT = BADGE_IMAGE.width / BADGE_IMAGE.height;
 
 type BadgeModelProps = {
+  mode: "drag" | "sensor";
   motion: {
     tiltX: number;
     tiltY: number;
@@ -101,7 +102,7 @@ function createAlphaTexture(source: CanvasImageSource, width: number, height: nu
   return texture;
 }
 
-function BadgeModel({ textureUrl, motion }: BadgeModelProps) {
+function BadgeModel({ textureUrl, motion, mode }: BadgeModelProps) {
   const group = useRef<THREE.Group>(null);
   const { gl, size } = useThree();
   const texture = useTexture(textureUrl, (loadedTexture) => {
@@ -168,6 +169,8 @@ function BadgeModel({ textureUrl, motion }: BadgeModelProps) {
       return;
     }
 
+    const idleSpin = mode === "drag" ? Math.sin(state.clock.elapsedTime * 0.45) * 0.025 : 0;
+
     group.current.rotation.x = THREE.MathUtils.damp(
       group.current.rotation.x,
       0.02 + motion.tiltX,
@@ -182,7 +185,7 @@ function BadgeModel({ textureUrl, motion }: BadgeModelProps) {
     );
     group.current.rotation.z = THREE.MathUtils.damp(
       group.current.rotation.z,
-      0.01 + Math.sin(state.clock.elapsedTime * 0.45) * 0.025 + motion.tiltY * -0.18,
+      0.01 + idleSpin,
       4,
       delta,
     );
@@ -322,13 +325,24 @@ function MotionControls({ enabled, onMotionChange }: MotionControlsProps) {
       return;
     }
 
+    let baselineBeta: number | null = null;
+    let baselineGamma: number | null = null;
+
     const handleOrientation = (event: DeviceOrientationEvent) => {
-      const beta = THREE.MathUtils.clamp(event.beta ?? 0, -45, 45);
-      const gamma = THREE.MathUtils.clamp(event.gamma ?? 0, -45, 45);
+      const beta = THREE.MathUtils.clamp(event.beta ?? 0, -85, 85);
+      const gamma = THREE.MathUtils.clamp(event.gamma ?? 0, -85, 85);
+
+      if (baselineBeta === null || baselineGamma === null) {
+        baselineBeta = beta;
+        baselineGamma = gamma;
+      }
+
+      const deltaBeta = THREE.MathUtils.clamp(beta - baselineBeta, -55, 55);
+      const deltaGamma = THREE.MathUtils.clamp(gamma - baselineGamma, -55, 55);
 
       onMotionChange({
-        tiltX: THREE.MathUtils.degToRad(beta) * 0.34,
-        tiltY: THREE.MathUtils.degToRad(gamma) * 0.46,
+        tiltX: THREE.MathUtils.degToRad(-deltaBeta),
+        tiltY: THREE.MathUtils.degToRad(-deltaGamma),
       });
     };
 
@@ -410,7 +424,7 @@ function Scene({
           </group>
         </Environment>
 
-        <BadgeModel textureUrl={textureUrl} motion={motion} />
+        <BadgeModel textureUrl={textureUrl} motion={motion} mode={mode} />
       </Suspense>
 
       <ContactShadows
